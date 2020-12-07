@@ -10,8 +10,8 @@ typedef struct eap_5g_t eap_5g_t;
 
 #include <sa/eap/eap_method.h>
 
-#define VENDOR_ID 66666
-#define VENDOR_TYPE 20893
+#define VENDOR_ID 10415
+#define VENDOR_TYPE 3
 
 /**
  * Implementation of the eap_method_t interface using EAP-{type}-{vendor}.
