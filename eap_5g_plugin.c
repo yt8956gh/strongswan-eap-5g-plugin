@@ -7,7 +7,7 @@
 METHOD(plugin_t, get_name, char*,
 	eap_5g_plugin_t *this)
 {
-	return "eap-VENDOR_TYPE-VENDOR_ID";
+	return "eap-3GPP-EAP5G";
 }
 
 METHOD(plugin_t, get_features, int,

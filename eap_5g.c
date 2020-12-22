@@ -1,4 +1,6 @@
+#include "ie_constants.h"
 #include "eap_5g.h"
+
 
 #include <daemon.h>
 #include <library.h>
@@ -34,75 +36,6 @@ struct private_eap_5g_t {
 	uint8_t identifier;
 };
 
-typedef struct eap_5g_header_t eap_5g_header_t;
-
-/**
- * packed eap 5G header struct
- */
-struct eap_5g_header_t {
-	/** EAP code (REQUEST/RESPONSE) */
-	uint8_t code;
-	/** unique message identifier */
-	uint8_t identifier;
-	/** length of whole message */
-	uint16_t length;
-	/** EAP type */
-	uint8_t type;
-	/** vendor ID **/
-	uint8_t vendor_id[3];
-	/** vendor type **/
-	uint32_t vendor_type;
-	/** vendor data */
-	uint8_t data[];
-} __attribute__((__packed__));
-
-enum eap_5g_data_type{
-	eap_5g_data_type_NASPDU,
-	eap_5g_data_type_AN,
-	eap_5g_data_type_MAX
-};
-
-
-enum an_parameter_type{
-	ANP_Type_GUAMI           = 1,
-	ANP_Type_SelectedPLMNID     ,
-	ANP_Type_RequestedNSSAI     ,
-	ANP_Type_EstablishmentCause ,
-	ANP_Type_Max
-};
-
-
-// octect of IEI is not contained
-enum an_parameter_fixed_length{
-	ANP_Length_GUAMI = 6,
-	ANP_Length_EstablishmentCause = 1,
-	ANP_Length_PLMNID = 4,
-	ANP_Length_NSSAI_Header = 1,
-	ANP_Length_SNSSAI_SST_SD = 4
-};
-
-enum N3AEC{
-	EC_Emergency          = 0,
-	EC_HighPriorityAccess = 1,
-	EC_MO_Signalling      = 3,
-	EC_MO_Data            = 4,
-	EC_MPS_PriorityAccess = 8,
-	EC_MCS_PriorityAccess = 9
-}
-
-typedef struct {
-
-	uint16_t len;
-	int tag;
-	uint8_t value[];
-}__attribute__((__packed__)) eap_5g_data_t;
-
-typedef struct{
-	uint8_t type;
-	uint8_t length;
-	uint8_t value[];
-
-}__attribute__((__packed__)) an_parameter_t;
 
 METHOD(eap_method_t, initiate_peer, status_t,
 	private_eap_5g_t *this, eap_payload_t **out)
@@ -158,24 +91,19 @@ METHOD(eap_method_t, process_peer, status_t,
 
         DBG1(DBG_IKE, "Get msg: %s\n", str);
 
-        const char pass1[] = "testmsg";
-        const char pass2[] = "10km";
 
 		eap_code_t code = in->get_code(in);
-		uint8_t Message_ID;
-		eap_5g_data_t AN, NASPDU;
+		uint8_t MessageID;
 
-		// uint16_t AN_Parameter_Len;
-		// uint8_t *ANP_ptr = NULL;
-		// uint16_t NAS_PDU_Len;
-		// uint8_t *NAS_PDU_ptr = NULL;
+
+		eap_5g_data_t AN, NASPDU;
 
 		Message_ID = str[0];
 
-		DBG1(DBG_IKE, "EAP-5G Code: %d\tMSG-ID: %d\n", code, Message_ID);
+		DBG1(DBG_IKE, "EAP-5G Code: %d\tMSG-ID: %d\n", code, MessageID);
 
 
-		if(code == EAP_REQUEST && Message_ID == 1) //deal with EAP-5G start
+		if(code == EAP_REQUEST && MessageID == 1) //deal with EAP-5G start
 		{
 			DBG1(DBG_IKE, "Recieve EAP-5G Start\n");
 
@@ -195,7 +123,7 @@ METHOD(eap_method_t, process_peer, status_t,
 			guami->value[4] = 0xfe;
 			guami->value[5] = 0x0;
 
-			an_parameter_t* ec = calloc(2+ANP_Length_Establishment_Cause, sizeof(uint8_t));
+			an_parameter_t* ec = calloc(2+ANP_Length_EstablishmentCause, sizeof(uint8_t));
 			ec->type = ANP_Type_EstablishmentCause;
 			ec->length = ANP_Length_EstablishmentCause;
 
@@ -238,7 +166,49 @@ METHOD(eap_method_t, process_peer, status_t,
 			nssai->value[9] = 0x22;
 			nssai->value[10]= 0x33;
 
+			const char supi[] = "imsi-2089300007487";
+
+
 			//TODO: Encode NAS-PDU of EAPResponse
+			nas_pdu_registration_request_data_t  nasData = {
+				.ExtendedProtocolDiscriminator = Epd5GSMobilityManagementMessage,
+				.SpareHalfOctetAndSecurityHeaderType = INIT_SECURITY_HEADER_TYPE_PLAIN_NAS(SecurityHeaderTypePlainNas),
+				.RegistrationRequestMessageIdentity = MsgTypeRegistrationRequest,
+				.NgksiAndRegistrationType5GS = INIT_NGKSI_AND_REGISTRATION_TYPE_5GS(0x1, 0x7, RegistrationType5GSInitialRegistration),
+				.MobileIdentity5GS = (TLV_Buffer*)calloc(3+12 ,sizeof(uint8_t)), // 3 is length of IEI(1 byte) + Length(2 byte)
+				.UESecurityCapability = (TLV_Buffer*)calloc(3+2 ,sizeof(uint8_t))
+			};
+
+			uint8_t MobileIdentity5GSValueTmp[] = {0x01, 0x02, 0xf8, 0x39, 0xf0, 0xff, 0x00, 0x00, 0x00, 0x00, 0x47, 0x78};
+
+			nasData.MobileIdentity5GS->len = 12;
+			memcpy(nasData.MobileIdentity5GS->value, MobileIdentity5GSValueTmp, 12);
+
+			// [TS 24.501] [9.11.3.54]
+			// If the UE does not support any security algorithm for AS security over E-UTRA connected to 5GCN,
+			// it shall not include octets 5 and 6. The UE shall not include octets 7 to 10.
+			nasData.UESecurityCapability->iei = UESecurityCapabilityType;
+			nasData.UESecurityCapability->len = 2;
+			nasData.UESecurityCapability->value[0] = 0x80; //5G-EA0		1000|0000
+			nasData.UESecurityCapability->value[1] = 0x40; //128-5G-IA2	0010|0000
+
+
+
+			// registrationRequest := nasMessage.NewRegistrationRequest(0)
+			// registrationRequest.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
+			// registrationRequest.SpareHalfOctetAndSecurityHeaderType.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
+			// registrationRequest.SpareHalfOctetAndSecurityHeaderType.SetSpareHalfOctet(0x00)
+			// registrationRequest.RegistrationRequestMessageIdentity.SetMessageType(nas.MsgTypeRegistrationRequest)
+			// registrationRequest.NgksiAndRegistrationType5GS.SetTSC(nasMessage.TypeOfSecurityContextFlagNative)
+			// registrationRequest.NgksiAndRegistrationType5GS.SetNasKeySetIdentifiler(0x7)
+			// registrationRequest.NgksiAndRegistrationType5GS.SetFOR(1)
+			// registrationRequest.NgksiAndRegistrationType5GS.SetRegistrationType5GS(registrationType)
+			// registrationRequest.MobileIdentity5GS = mobileIdentity
+
+			// registrationRequest.UESecurityCapability = ueSecurityCapability
+			// registrationRequest.Capability5GMM = capability5GMM
+			// registrationRequest.RequestedNSSAI = requestedNSSAI
+			// registrationRequest.UplinkDataStatus = uplinkDataStatus
 
 			// below is useless code
 			len = sizeof(eap_5g_header_t) + strlen(pass2);

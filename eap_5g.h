@@ -19,6 +19,30 @@ typedef struct eap_5g_t eap_5g_t;
  * This implementation follow 3GPP TS 23.502 system procedure to
  * verify user credentials.
  */
+
+/**
+ * packed eap 5G header struct
+ */
+typedef struct{
+	/** EAP code (REQUEST/RESPONSE) */
+	uint8_t code;
+	/** unique message identifier */
+	uint8_t identifier;
+	/** length of whole message */
+	uint16_t length;
+	/** EAP type */
+	uint8_t type;
+	/** vendor ID **/
+	uint8_t vendor_id[3];
+	/** vendor type **/
+	uint32_t vendor_type;
+	/** vendor data */
+	uint8_t data[];
+} __attribute__((__packed__)) eap_5g_header_t;
+
+
+
+
 struct eap_5g_t {
 
 	/**
