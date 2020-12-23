@@ -1,6 +1,12 @@
 #ifndef IE_CONSTANTS
 #define IE_CONSTANTS
 
+#define INIT_NGKSI_AND_REGISTRATION_TYPE_5GS(TSC, NAS_KEY_SET_ID, REGISTRATION_TYPE) \
+    (TSC << 7) | (NAS_KEY_SET_ID << 4) | (uint8_t)REGISTRATION_TYPE
+
+#define INIT_SECURITY_HEADER_TYPE_PLAIN_NAS(SECURITY_HEADER_TYPE) \
+    SECURITY_HEADER_TYPE << 3
+
 typedef struct
 {
 	uint8_t  iei;
@@ -8,6 +14,13 @@ typedef struct
 	uint8_t  value[];
 
 }__attribute__((__packed__)) TLV_Buffer;
+
+typedef struct
+{
+	uint16_t len;
+	uint8_t  value[];
+
+}__attribute__((__packed__)) LV_Buffer;
 
 typedef struct
 {
@@ -55,6 +68,8 @@ typedef struct{
 	uint8_t RegistrationRequestMessageIdentity;
 	uint8_t NgksiAndRegistrationType5GS;
 	uint8_t NoncurrentNativeNASKeySetIdentifier;
+    LV_Buffer *MobileIdentity5GS; //SUCI
+
 
 	uint8_t MICOIndication;
 	uint8_t NetworkSlicingIndication;
@@ -67,7 +82,6 @@ typedef struct{
 	TLV_Octet *RequestedDRXParameters;
 	TLV_Octet *UpdateType5GS;
 
-	TLV_Buffer *MobileIdentity5GS;
 	TLV_Buffer *Capability5GMM; //len=13
 	TLV_Buffer *UESecurityCapability;
 	TLV_Buffer *RequestedNSSAI;
@@ -88,7 +102,6 @@ typedef struct{
 typedef struct {
 
 	uint16_t len;
-	int tag;
 	uint8_t value[];
 }__attribute__((__packed__)) eap_5g_data_t;
 
@@ -117,11 +130,11 @@ enum an_parameter_type{
 
 // octect of IEI is not contained
 enum an_parameter_fixed_length{
-	ANP_Length_GUAMI              = 6,
-	ANP_Length_EstablishmentCause = 1,
-	ANP_Length_PLMNID             = 4,
-	ANP_Length_NSSAI_Header       = 1,
-	ANP_Length_SNSSAI_SST_SD      = 4
+	ANP_Value_Length_GUAMI              = 6,
+	ANP_Value_Length_EstablishmentCause = 1,
+	ANP_Value_Length_PLMNID             = 4,
+	ANP_Value_Length_NSSAI_Header       = 1,
+	ANP_Value_Length_SNSSAI_SST_SD      = 4
 };
 
 enum n3_establishment_cause{

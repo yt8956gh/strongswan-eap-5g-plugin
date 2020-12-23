@@ -36,6 +36,11 @@ typedef struct{
 	uint8_t vendor_id[3];
 	/** vendor type **/
 	uint32_t vendor_type;
+
+	uint8_t message_id;
+
+	uint8_t spare;
+
 	/** vendor data */
 	uint8_t data[];
 } __attribute__((__packed__)) eap_5g_header_t;
